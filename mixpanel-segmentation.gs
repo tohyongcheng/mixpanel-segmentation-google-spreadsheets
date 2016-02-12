@@ -17,28 +17,30 @@
 var API_KEY = '';
 var API_SECRET = '';
 
+
 /**
  * Step 2) Define the tab # at which to create new sheets in the spreadsheet.
  * 0 creates a new sheet as the first sheet. 
  * 1 creates a new sheet at the second sheet and so forth.
  */
-var CREATE_NEW_SHEETS_AT = 1;
+var CREATE_NEW_SHEETS_AT = 0;
 
 /**
  * Step 3) Define date range as a string in format of 'yyyy-mm-dd' or '2013-09-13'
  *
  * Today's Date: set equal to getMixpanelDateToday() 
  * Yesterday's Date: set equal to getMixpanelDateYesterday() 
+ * Last Week's Date: set equal to getMixpanelDateLastWeek()
  */
-var FROM_DATE = '2013-09-13';
-var TO_DATE = getMixpanelDateYesterday();
+var FROM_DATE = getMixpanelDateYesterday();
+var TO_DATE = getMixpanelDateToday();
 
 /**
  * Step 4) Define Segmentation Queries - Get data for an event, segmented and filtered by properties.
  *
- * Format is: 'Sheet Name' : [ 'event', 'where', 'type', 'unit' ],
+ * Format is: 'Sheet Name' : [ 'event', 'where', 'type', 'unit', 'on' ],
  *
- * For example: 'Sign Ups' : [ '$signup', '(properties["Platform"])=="iPhone" and (properties["mp_country_code"])=="GB"', 'general', 'day' ],
+ * For example: 'Sign Ups' : [ '$signup', '(properties["Platform"])=="iPhone" and (properties["mp_country_code"])=="GB"', 'general', 'day', 'properties["utm"]'],
  *
  * For full details on Segmentation Queries https://mixpanel.com/docs/api-documentation/data-export-api#segmentation-default
  * Sheet Name - What you want the sheet with your data to be called.
@@ -46,11 +48,14 @@ var TO_DATE = getMixpanelDateYesterday();
  * where - The property expression to segment the event on.
  * type - This can be 'general', 'unique', or 'average'.
  * unit - This can be 'minute', 'hour', 'day', or 'month'.
+ * on - The property expression to segment the results by.
  */
+
 var API_PARAMETERS = {
-    'Sheet 1' : [ 'event', 'where', 'type', 'unit' ],
-    'Sheet 2' :  [ 'event', 'where', 'type', 'unit' ],
+    'Sheet 1' : [ 'event', 'where', 'type', 'unit', 'on' ],
+    'Sheet 2' :  [ 'event', 'where', 'type', 'unit', 'on' ],
 };
+
 
 /**
  * Step 5) Get Data
@@ -133,9 +138,20 @@ function fetchMixpanelData(sheetName) {
   var parametersEntry = API_PARAMETERS[sheetName];
   
   var data = [];
-  data.push(["Date", "Data"]);
+  var header = [];
+  // data.push([dataAll.data]);
+ 
+  // Get 'on' property values
+  propertyValues = Object.keys(dataAll.data.values);
+  header = ["Date"].concat(propertyValues);
+  data.push(header);
+  
   for (i in dates) {
-     data.push([ dates[i], dataAll.data.values[parametersEntry[0]][dates[i]] ]);
+    var row = [dates[i]];
+    for (j in dataAll.data.values) {
+      row.push(dataAll.data.values[j][dates[i]]);
+    }
+    data.push(row);
   }
   
    insertSheet(sheetName, data);
@@ -144,7 +160,7 @@ function fetchMixpanelData(sheetName) {
 
 /**
  * Creates a sheet and sets the name and index
- * insertSheet	https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet#insertSheet(String,Integer)
+ * insertSheet https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet#insertSheet(String,Integer)
  * feed it a two dimensional array of values
  * getRange(row, column, numRows, numColumns) https://developers.google.com/apps-script/reference/spreadsheet/sheet#getRange(Integer,Integer,Integer,Integer)
  * setValues(values) https://developers.google.com/apps-script/reference/spreadsheet/range#setValue(Object)
@@ -194,6 +210,7 @@ function getApiParameters(expires, sheetName) {
         'where=' + parametersEntry[1],
         'type=' + parametersEntry[2],
         'unit=' + parametersEntry[3],
+        'on=' + parametersEntry[4],
         'from_date=' + FROM_DATE,
         'to_date=' + TO_DATE
     ];
@@ -277,6 +294,30 @@ function getMixpanelDateYesterday(){
   var today = new Date();
   var yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
+  
+  //Logger.log(yesterday);
+  var dd = yesterday.getDate();
+  //Logger.log(yesterday);
+  var mm = yesterday.getMonth() + 1;
+  var yyyy = yesterday.getFullYear();
+  
+  if (dd < 10) {
+    dd = '0' + dd;
+  }
+  if (mm < 10) {
+    mm = '0' + mm;
+  }
+  
+  yesterday = yyyy + '-' + mm + '-' + dd;
+  //Logger.log(yesterday);
+  return yesterday;
+}
+
+// Returns last week's date string in Mixpanel date format '2013-09-11'
+function getMixpanelDateLastWeek(){
+  var today = new Date();
+  var yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 7);
   
   //Logger.log(yesterday);
   var dd = yesterday.getDate();
